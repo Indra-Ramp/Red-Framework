@@ -3,6 +3,7 @@ package red.mvc.Utils;
 import java.io.File;
 import java.net.URL;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,6 +37,17 @@ public class Utils {
     public static List<Class<?>> getAnnotedClasses(List<Class<?>> classes, Class<? extends Annotation> annotation) throws Exception{
         List<Class<?>> ret = new ArrayList<>();
         for(Class<?> clazz : classes){
+            if(clazz.isAnnotationPresent(annotation)){
+                ret.add(clazz);
+            }
+        }
+        return ret;
+    }
+    
+    public static List<Class<?>> getAnnotedMethods(List<Class<?>> classes, Class<? extends Annotation> annotation) throws Exception{
+        List<Class<?>> ret = new ArrayList<>();
+        for(Class<?> clazz : classes){
+            Method[] m = clazz.get
             if(clazz.isAnnotationPresent(annotation)){
                 ret.add(clazz);
             }
