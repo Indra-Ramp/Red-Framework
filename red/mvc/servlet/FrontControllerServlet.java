@@ -3,7 +3,6 @@ package red.mvc.servlet;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
-import java.util.List;
 import java.util.Map;
 
 import jakarta.servlet.ServletException;
@@ -12,25 +11,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import red.mvc.Utils.Mapping;
 import red.mvc.Utils.UrlMethod;
-import red.mvc.Utils.Utils;
-import red.mvc.annotation.Controller;
 import red.mvc.exception.UrlMappingException;
+import red.mvc.listener.RedContextListener;
 
 public class FrontControllerServlet extends HttpServlet {
 
-    private List<Class<?>> listController;
-    private Map<String, Mapping> urlMapping;
-
-    @Override
-    public void init() throws ServletException{
-        String packageName = this.getInitParameter("controllersPackage");
-        try {
-            List<Class<?>> classes = Utils.scanPackage(packageName);
-            listController = Utils.getAnnotedClasses(classes, Controller.class);
-            urlMapping = Utils.getUrlMapping(listController);
-        } catch (Exception e) {
-            throw new ServletException(e);
-        }
+    @SuppressWarnings("unchecked")
+    private Map<UrlMethod, Mapping> getUrlMapping() {
+        return (Map<UrlMethod, Mapping>) getServletContext().getAttribute(RedContextListener.ATTR_URL_MAPPING);
     }
 
     @Override
@@ -65,7 +53,7 @@ public class FrontControllerServlet extends HttpServlet {
 
     private Mapping trouverMapping(String url, String httpMethod) throws UrlMappingException {
         UrlMethod cle = new UrlMethod(url, httpMethod);
-        Mapping mapping = urlMapping.get(cle);
+        Mapping mapping = getUrlMapping().get(cle);
         if (mapping == null) {
             throw new UrlMappingException("Aucune methode ne correspond a : " + httpMethod + " " + url);
         }
