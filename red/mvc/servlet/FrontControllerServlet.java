@@ -2,6 +2,7 @@ package red.mvc.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
@@ -10,6 +11,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import red.mvc.Utils.Mapping;
+import red.mvc.Utils.UrlMethod;
 import red.mvc.Utils.Utils;
 import red.mvc.annotation.Controller;
 import red.mvc.exception.UrlMappingException;
@@ -43,27 +45,39 @@ public class FrontControllerServlet extends HttpServlet {
 
     public void processRequest(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
         String url = req.getRequestURI().substring(req.getContextPath().length());
+        String httpMethod = req.getMethod();
         PrintWriter out = res.getWriter();
 
         try {
-            Mapping mapping = trouverMapping(url);
-            out.println("Url demandee : " + url);
-            out.println("Controller   : " + mapping.getController().getName());
-            out.println("Methode      : " + mapping.getMethode().getName());
+            Mapping mapping = trouverMapping(url, httpMethod);
+            Object resultat = invoquer(mapping);
+            out.print(resultat);
         } catch (UrlMappingException e) {
             res.setStatus(HttpServletResponse.SC_NOT_FOUND);
             out.println("Erreur : " + e.getMessage());
+        } catch (ReflectiveOperationException e) {
+            res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.println("Erreur lors de l'invocation : " + e.getMessage());
         }
 
         out.close();
     }
 
-    // Bonus : leve une exception si l'url demandee n'existe pas dans le mapping
-    private Mapping trouverMapping(String url) throws UrlMappingException {
-        Mapping mapping = urlMapping.get(url);
+    private Mapping trouverMapping(String url, String httpMethod) throws UrlMappingException {
+        UrlMethod cle = new UrlMethod(url, httpMethod);
+        Mapping mapping = urlMapping.get(cle);
         if (mapping == null) {
-            throw new UrlMappingException("Aucune methode ne correspond a l'url : " + url);
+            throw new UrlMappingException("Aucune methode ne correspond a : " + httpMethod + " " + url);
         }
         return mapping;
+    }
+
+    private Object invoquer(Mapping mapping) throws ReflectiveOperationException {
+        Object instance = mapping.getController().getDeclaredConstructor().newInstance();
+        try {
+            return mapping.getMethode().invoke(instance);
+        } catch (InvocationTargetException e) {
+            throw new ReflectiveOperationException(e.getCause());
+        }
     }
 }
