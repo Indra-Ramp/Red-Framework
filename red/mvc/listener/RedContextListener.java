@@ -10,7 +10,8 @@ import red.mvc.Utils.Mapping;
 import red.mvc.Utils.UrlMethod;
 import red.mvc.Utils.Utils;
 import red.mvc.annotation.Controller;
-
+import jakarta.servlet.annotation.WebListener;
+@WebListener
 public class RedContextListener implements ServletContextListener {
 
     public static final String ATTR_URL_MAPPING = "red.urlMapping";
