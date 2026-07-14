@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import red.mvc.annotation.UrlMapping;
+import red.mvc.exception.UrlMappingException;
 
 public class Utils {
     public static List<Class<?>> scanPackage(String namePackage) throws Exception {
@@ -59,14 +60,21 @@ public class Utils {
         return ret;
     }
 
-    public static Map<String, Mapping> getUrlMapping(List<Class<?>> controllers) throws Exception {
-        Map<String, Mapping> mapping = new HashMap<>();
+    public static Map<UrlMethod, Mapping> getUrlMapping(List<Class<?>> controllers) throws UrlMappingException {
+        Map<UrlMethod, Mapping> mapping = new HashMap<>();
         for (Class<?> controller : controllers) {
             for (Method methode : controller.getDeclaredMethods()) {
                 if (methode.isAnnotationPresent(UrlMapping.class)) {
                     UrlMapping annotation = methode.getAnnotation(UrlMapping.class);
-                    String url = annotation.url();
-                    mapping.put(url, new Mapping(controller, methode));
+                    UrlMethod cle = new UrlMethod(annotation.url(), annotation.method());
+                    if (mapping.containsKey(cle)) {
+                        throw new UrlMappingException(
+                            "Mapping duplique pour " + annotation.method() + " " + annotation.url()
+                            + " (deja defini par " + mapping.get(cle).getController().getName()
+                            + "." + mapping.get(cle).getMethode().getName() + ")"
+                        );
+                    }
+                    mapping.put(cle, new Mapping(controller, methode));
                 }
             }
         }
