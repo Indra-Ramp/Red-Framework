@@ -12,11 +12,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import red.mvc.Utils.Mapping;
 import red.mvc.Utils.UrlMethod;
+import red.mvc.Utils.ModelAndView;
 import red.mvc.exception.UrlMappingException;
 import red.mvc.listener.RedContextListener;
 
 public class FrontControllerServlet extends HttpServlet {
     Map<UrlMethod, Mapping> urlMapping = new HashMap<>();
+    String prefix = null;
+    String suffix = null;
 
     // @SuppressWarnings("unchecked")
     // private Map<UrlMethod, Mapping> getUrlMapping() {
@@ -27,6 +30,8 @@ public class FrontControllerServlet extends HttpServlet {
     public void init() throws ServletException {
         super.init();
         urlMapping = (Map<UrlMethod, Mapping>) getServletContext().getAttribute(RedContextListener.ATTR_URL_MAPPING);
+        prefix = (String)getServletContext().getAttribute("prefixe");
+        suffix = (String) getServletContext().getAttribute("suffixe");
     }
 
     @Override
@@ -47,7 +52,12 @@ public class FrontControllerServlet extends HttpServlet {
         try {
             Mapping mapping = trouverMapping(url, httpMethod);
             Object resultat = invoquer(mapping);
-            out.print(resultat);
+            if (resultat instanceof ModelAndView) {
+                ModelAndView mav = (ModelAndView) resultat;
+                traiterModelAndView(mav, req, res);
+            } else {
+                out.print(resultat);
+            }
         } catch (UrlMappingException e) {
             res.setStatus(HttpServletResponse.SC_NOT_FOUND);
             out.println("Erreur : " + e.getMessage());
@@ -74,6 +84,19 @@ public class FrontControllerServlet extends HttpServlet {
             return mapping.getMethode().invoke(instance);
         } catch (InvocationTargetException e) {
             throw new ReflectiveOperationException(e.getCause());
+        }
+    }
+
+    public void traiterModelAndView(ModelAndView mav, HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {   
+        
+        if (mav != null) {
+            if (mav.getAttribute() != null) {
+                for (Map.Entry<String, Object> entry : mav.getAttribute().entrySet()) {
+                    req.setAttribute(entry.getKey(), entry.getValue());
+                }
+            }
+
+            req.getRequestDispatcher(prefix + mav.getViewName() + suffix).forward(req, res);
         }
     }
 }

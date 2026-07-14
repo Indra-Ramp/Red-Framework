@@ -20,6 +20,10 @@ public class RedContextListener implements ServletContextListener {
     public void contextInitialized(ServletContextEvent sce) {
         ServletContext context = sce.getServletContext();
         String packageName = context.getInitParameter("controllersPackage");
+        String prefix = context.getInitParameter("prefixe");
+        String suffix = context.getInitParameter("suffixe");
+        System.out.println(prefix);
+        System.out.println(suffix);
 
         try {
             List<Class<?>> classes = Utils.scanPackage(packageName);
@@ -27,6 +31,8 @@ public class RedContextListener implements ServletContextListener {
             Map<UrlMethod, Mapping> urlMapping = Utils.getUrlMapping(controllers);
 
             context.setAttribute(ATTR_URL_MAPPING, urlMapping);
+            context.setAttribute("prefixe", prefix);
+            context.setAttribute("suffixe", suffix);
         } catch (Exception e) {
             throw new RuntimeException("Erreur lors de l'initialisation du Red-Framework", e);
         }
