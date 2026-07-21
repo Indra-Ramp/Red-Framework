@@ -11,7 +11,7 @@ set APP_NAME=red
 set SRC_DIR=.
 set BUILD_DIR=bin
 set LIB_DIR=lib
-set SERVLET_API_JAR=%LIB_DIR%\servlet-api.jar
+set SERVLET_API_JAR=%LIB_DIR%\*
 set TEST_LIB=C:\Indra\Mr_Naina\Test-Framework\lib
 
 :: Créer le dossier bin s'il n'existe pas

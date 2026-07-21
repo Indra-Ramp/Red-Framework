@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.context.ApplicationContext;
+
 import red.mvc.annotation.UrlMapping;
 import red.mvc.exception.UrlMappingException;
 
@@ -80,4 +82,26 @@ public class Utils {
         }
         return mapping;
     }
+
+    public static Object invokeMapping(Mapping mapping, ServletContext servletContext) throws Exception{
+        Object controllerInstance = mapping.getController().getDeclaredConstructor().newInstance();
+        Class<?>[] paramTypes = mapping.getMethode().getParameterTypes();
+        int index = exchangePlace(ApplicationContext.class, paramTypes);
+        Object[] args = new Object[paramTypes.length];
+        if(index != -1){
+            args[index] = servletContext.getAttribute("applicationContext");
+        }
+        return mapping.getMethode().invoke(controllerInstance, args);
+    }
+
+    private static int exchangePlace(Class<?> clazz, Class<?>[] paramTypes) throws Exception {
+        for(int i = 0; i < paramTypes.length; i++){
+            if(paramTypes[i].equals(clazz)){
+                return i;
+            }
+            
+        }
+        return -1;
+    }
+
 }
