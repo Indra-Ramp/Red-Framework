@@ -3,6 +3,8 @@ package red.mvc.listener;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
@@ -22,6 +24,8 @@ public class RedContextListener implements ServletContextListener {
         String packageName = context.getInitParameter("controllersPackage");
         String prefix = context.getInitParameter("prefixe");
         String suffix = context.getInitParameter("suffixe");
+        ApplicationContext ctx = new ClassPathXmlApplicationContext("applicationContext.xml");
+        context.setAttribute("applicationContext", ctx);
         System.out.println(prefix);
         System.out.println(suffix);
 
@@ -42,4 +46,6 @@ public class RedContextListener implements ServletContextListener {
     public void contextDestroyed(ServletContextEvent sce) {
         sce.getServletContext().removeAttribute(ATTR_URL_MAPPING);
     }
+
+
 }
