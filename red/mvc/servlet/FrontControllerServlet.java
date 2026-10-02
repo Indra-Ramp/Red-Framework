@@ -12,9 +12,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import red.mvc.Utils.Mapping;
 import red.mvc.Utils.UrlMethod;
+import red.mvc.Utils.Utils;
 import red.mvc.Utils.ModelAndView;
 import red.mvc.exception.UrlMappingException;
 import red.mvc.listener.RedContextListener;
+import red.mvc.annotation.*;
 
 public class FrontControllerServlet extends HttpServlet {
     Map<UrlMethod, Mapping> urlMapping = new HashMap<>();
@@ -58,6 +60,21 @@ public class FrontControllerServlet extends HttpServlet {
             } else {
                 out.print(resultat);
             }
+
+            try (PrintWriter writer = res.getWriter()) {
+                if(mapping.getMethode().isAnnotationPresent(Api.class)){
+                    res.setHeader("Content-Type", "application/json");
+                    res.setContentType("application/json");
+                    String json = Utils.toJson(resultat);
+                    writer.print(json);
+                    return;
+                }
+                writer.print(resultat);
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
+                throw new ServletException();
+            }
+
         } catch (UrlMappingException e) {
             res.setStatus(HttpServletResponse.SC_NOT_FOUND);
             out.println("Erreur : " + e.getMessage());

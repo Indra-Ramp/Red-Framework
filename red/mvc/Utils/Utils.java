@@ -12,6 +12,8 @@ import jakarta.servlet.ServletContext;
 
 import org.springframework.context.ApplicationContext;
 
+import com.fasterxml.jackson.databind.ObjectWriter;
+
 import red.mvc.annotation.UrlMapping;
 import red.mvc.exception.UrlMappingException;
 
@@ -103,6 +105,11 @@ public class Utils {
             
         }
         return -1;
+    }
+
+    public static String toJson(Object object) throws Exception {
+        ObjectWriter obj = JsonResources.getObjectWriter();
+        return obj.writeValueAsString(object);
     }
 
 }
