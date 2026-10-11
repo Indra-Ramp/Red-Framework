@@ -2,38 +2,35 @@ package red.mvc.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
 import java.util.Map;
 
+import red.mvc.annotation.Api;
+import red.mvc.exception.UrlNotFoundException;
+import red.mvc.Utils.Mapping;
+import red.mvc.Utils.UrlMethod;
+import red.mvc.Utils.Utils;
+import red.mvc.web.servlet.ModelAndView;
+import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import red.mvc.Utils.Mapping;
-import red.mvc.Utils.UrlMethod;
-import red.mvc.Utils.Utils;
-import red.mvc.Utils.ModelAndView;
-import red.mvc.exception.UrlMappingException;
-import red.mvc.listener.RedContextListener;
-import red.mvc.annotation.*;
 
+/**
+ * @author Nomena
+ */
 public class FrontControllerServlet extends HttpServlet {
-    Map<UrlMethod, Mapping> urlMapping = new HashMap<>();
-    String prefix = null;
-    String suffix = null;
 
-    // @SuppressWarnings("unchecked")
-    // private Map<UrlMethod, Mapping> getUrlMapping() {
-        
-    //     return (Map<UrlMethod, Mapping>) getServletContext().getAttribute(RedContextListener.ATTR_URL_MAPPING);
-    // }
+    private Map<UrlMethod, Mapping> urlMappings;
+    private String suffix;
+    private String prefix;
 
+    @Override
+    @SuppressWarnings("unchecked")
     public void init() throws ServletException {
-        super.init();
-        urlMapping = (Map<UrlMethod, Mapping>) getServletContext().getAttribute(RedContextListener.ATTR_URL_MAPPING);
-        prefix = (String)getServletContext().getAttribute("prefixe");
-        suffix = (String) getServletContext().getAttribute("suffixe");
+        urlMappings = (Map<UrlMethod, Mapping>) this.getServletContext().getAttribute("urlMappings");
+        suffix = (String) this.getServletContext().getInitParameter("suffix");
+        prefix = (String) this.getServletContext().getInitParameter("prefix");
     }
 
     @Override
@@ -46,74 +43,60 @@ public class FrontControllerServlet extends HttpServlet {
         processRequest(req, res);
     }
 
+    /**
+     * @author <b>Nomena</b>
+     * @param req : The object representation of the request
+     * @param res : The object representation of the response
+     * @throws ServletException
+     * @throws IOException
+     */
+
     public void processRequest(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
-        String url = req.getRequestURI().substring(req.getContextPath().length());
-        String httpMethod = req.getMethod();
-        PrintWriter out = res.getWriter();
-
-        try {
-            Mapping mapping = trouverMapping(url, httpMethod);
-            Object resultat = invoquer(mapping);
-            if (resultat instanceof ModelAndView) {
-                ModelAndView mav = (ModelAndView) resultat;
-                traiterModelAndView(mav, req, res);
-            } else {
-                out.print(resultat);
-            }
-
-            try (PrintWriter writer = res.getWriter()) {
-                if(mapping.getMethode().isAnnotationPresent(Api.class)){
-                    res.setHeader("Content-Type", "application/json");
-                    res.setContentType("application/json");
-                    String json = Utils.toJson(resultat);
-                    writer.print(json);
-                    return;
-                }
-                writer.print(resultat);
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
-                throw new ServletException();
-            }
-
-        } catch (UrlMappingException e) {
-            res.setStatus(HttpServletResponse.SC_NOT_FOUND);
-            out.println("Erreur : " + e.getMessage());
-        } catch (ReflectiveOperationException e) {
-            res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.println("Erreur lors de l'invocation : " + e.getMessage());
+        if(urlMappings == null) {
+            throw new ServletException("NULL");
         }
-
-        out.close();
-    }
-
-    private Mapping trouverMapping(String url, String httpMethod) throws UrlMappingException {
-        UrlMethod cle = new UrlMethod(url, httpMethod);
-        Mapping mapping = urlMapping.get(cle);
-        if (mapping == null) {
-            throw new UrlMappingException("Aucune methode ne correspond a : " + httpMethod + " " + url);
+        String uri = req.getPathInfo();
+        if(uri != null && uri.startsWith("/WEB-INF")) {
+            req.getServletContext().getNamedDispatcher("jsp").forward(req, res);
+            return;
         }
-        return mapping;
-    }
-
-    private Object invoquer(Mapping mapping) throws ReflectiveOperationException {
-        Object instance = mapping.getController().getDeclaredConstructor().newInstance();
-        try {
-            return mapping.getMethode().invoke(instance);
-        } catch (InvocationTargetException e) {
-            throw new ReflectiveOperationException(e.getCause());
+        UrlMethod method = new UrlMethod();
+        method.setUrl(uri);
+        method.setMethode(req.getMethod());
+        Mapping mapping = urlMappings.get(method);
+        if(mapping == null) {
+            UrlNotFoundException ex = new UrlNotFoundException(urlMappings, method);
+            throw new ServletException(ex);
         }
-    }
-
-    public void traiterModelAndView(ModelAndView mav, HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {   
         
-        if (mav != null) {
-            if (mav.getAttribute() != null) {
-                for (Map.Entry<String, Object> entry : mav.getAttribute().entrySet()) {
+        try {
+            Object result = Utils.invokeMapping(mapping,this.getServletContext(), req);
+            if(result instanceof ModelAndView) {
+                ModelAndView castedResult = (ModelAndView) result;
+                String viewName = prefix + castedResult.getViewName() + suffix;
+                // out.println(viewName);
+                RequestDispatcher dis = req.getRequestDispatcher(viewName);
+                for(Map.Entry<String, Object> entry : castedResult.getAttributes().entrySet()) {
                     req.setAttribute(entry.getKey(), entry.getValue());
                 }
+                // out.println(dis);
+                dis.forward(req, res);
+                return;
             }
-
-            req.getRequestDispatcher(prefix + mav.getViewName() + suffix).forward(req, res);
+            try(PrintWriter out = res.getWriter();) {
+                if(mapping.getMethod().isAnnotationPresent(Api.class)) {
+                    res.addHeader("Content-Type", "application/json");
+                    if(result != null && result.getClass().equals(String.class)) {
+                        out.println(result);
+                        return;
+                    }
+                    out.println(Utils.toJson(result));
+                    return;
+                }
+                out.println(result);
+            }
+        } catch(Exception e) {
+            throw new ServletException(e);
         }
     }
 }

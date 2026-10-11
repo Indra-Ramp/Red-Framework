@@ -1,48 +1,57 @@
 package red.mvc.listener;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletContextEvent;
-import jakarta.servlet.ServletContextListener;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import red.mvc.annotation.Controller;
 import red.mvc.Utils.Mapping;
 import red.mvc.Utils.UrlMethod;
 import red.mvc.Utils.Utils;
-import red.mvc.annotation.Controller;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContextListener;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebListener;
 
 @WebListener
 public class RedContextListener implements ServletContextListener {
 
-    public static final String ATTR_URL_MAPPING = "red.urlMapping";
+    @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+        // TODO Auto-generated method stub
+        ServletContextListener.super.contextDestroyed(sce);
+    }
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
+        // TODO Auto-generated method stub
+        ServletContextListener.super.contextInitialized(sce);
         ServletContext context = sce.getServletContext();
         String packageName = context.getInitParameter("controllersPackage");
-        String prefix = context.getInitParameter("prefixe");
-        String suffix = context.getInitParameter("suffixe");
-        System.out.println(prefix);
-        System.out.println(suffix);
-
+        // System.out.println("--------------------------------");
+        // System.out.println(packageName);
+        // System.out.println("--------------------------------");
         try {
-            List<Class<?>> classes = Utils.scanPackage(packageName);
-            List<Class<?>> controllers = Utils.getAnnotedClasses(classes, Controller.class);
-            Map<UrlMethod, Mapping> urlMapping = Utils.getUrlMapping(controllers);
-
-            context.setAttribute(ATTR_URL_MAPPING, urlMapping);
-            context.setAttribute("prefixe", prefix);
-            context.setAttribute("suffixe", suffix);
+            try {
+                List<Class<?>> classes = Utils.scanPackage(packageName);
+                Map<UrlMethod, Mapping> urlMapping = new HashMap<>();
+                Utils.getUrlMapping(classes, Controller.class, urlMapping);
+                context.setAttribute("urlMappings", urlMapping);
+                ApplicationContext ctx = new ClassPathXmlApplicationContext("applicationContext.xml");
+                context.setAttribute("springContainer", ctx);
+            } catch (Exception e) {
+                throw new ServletException(e);
+            }
         } catch (Exception e) {
-            throw new RuntimeException("Erreur lors de l'initialisation du Red-Framework", e);
+            System.out.println("--------------------------------");
+            System.out.println(e.getMessage());
+            System.out.println("---------------------------------");
+            throw new RuntimeException(e);
         }
     }
-
-    @Override
-    public void contextDestroyed(ServletContextEvent sce) {
-        sce.getServletContext().removeAttribute(ATTR_URL_MAPPING);
-    }
-
 
 }
