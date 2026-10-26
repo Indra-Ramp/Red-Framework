@@ -5,7 +5,7 @@ SRC_DIR="./"
 BUILD_DIR="bin"
 LIB_DIR="lib"
 SERVLET_API_JAR="$LIB_DIR/servlet-api.jar"
-TEST_LIB="/home/itu/Documents/L2/Web Dynamique/Red/Test/lib"
+TEST_LIB="/home/indra/Bureau/Indra/L3/Mr_Naina/Test-Framework/lib"
 
 find $SRC_DIR -name "*.java" > sources.txt
 javac -cp $SERVLET_API_JAR -d $BUILD_DIR/ @sources.txt
