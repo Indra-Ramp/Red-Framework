@@ -15,3 +15,8 @@ sprint 6 :
 
 
 sprint manaraka : gestion de session, upload de fichier
+
+
+Sprint 7 - Bis :
+
+Mamadika ilay zavatra haverina ho object ny type de retour any

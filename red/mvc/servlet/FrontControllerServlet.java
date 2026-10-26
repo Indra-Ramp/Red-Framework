@@ -12,13 +12,15 @@ import red.mvc.Utils.Utils;
 import red.mvc.web.servlet.ModelAndView;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * @author Nomena
+ * @author Elia
  */
+@MultipartConfig 
 public class FrontControllerServlet extends HttpServlet {
 
     private Map<UrlMethod, Mapping> urlMappings;
@@ -44,7 +46,7 @@ public class FrontControllerServlet extends HttpServlet {
     }
 
     /**
-     * @author <b>Nomena</b>
+     * @author <b>Elia</b>
      * @param req : The object representation of the request
      * @param res : The object representation of the response
      * @throws ServletException
