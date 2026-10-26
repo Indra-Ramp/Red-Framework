@@ -1,15 +1,21 @@
 package red.mvc.Utils;
 
 import java.io.File;
+import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import org.springframework.context.ApplicationContext;
@@ -21,6 +27,7 @@ import red.mvc.annotation.UrlMapping;
 import red.mvc.exception.DuplicateUrlException;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Part;
 
 public class Utils {
     public static List<Class<?>> scanPackage(String packageName) throws Exception {
@@ -140,7 +147,7 @@ public class Utils {
         Class<?>[] parameterTypes = method.getParameterTypes();
         int contextIndex = findContextIndex(parameterTypes);
         Object[] parameters = new Object[parameterTypes.length];
-        fillParameters(method.getParameters(), req, parameters);
+        fillParametersObject(method.getParameters(), req, parameters);
         if(contextIndex != -1) {
             parameters[contextIndex] = context.getAttribute("springContainer");
         }
@@ -151,6 +158,98 @@ public class Utils {
     public static String toJson(Object object) throws JsonProcessingException {
         ObjectWriter ow = JsonResources.getObjectWriter();
         return ow.writeValueAsString(object);
+    }
+
+    private static void fillParametersObject(Parameter[] parameters, HttpServletRequest req, Object[] values)
+            throws Exception {
+        Enumeration<String> params = req.getParameterNames();
+
+        String contentType = req.getContentType();
+        Map<String, String[]> temp = new HashMap<>();
+        // Map<String, String[]> temp2 = new HashMap<>();
+
+        boolean isMultipart = contentType != null && contentType.toLowerCase().startsWith("multipart/");
+        if (isMultipart) {
+            List<String> paramsList = Collections.list(params);
+            Set<String> inputs = new HashSet<>();
+            Collection<Part> parts = req.getParts();
+            List<String> paramList2 = Collections.list(params);
+            Map<String, Integer> indexes = new HashMap<>();
+            Map<String, Boolean> multiples = new HashMap<>();
+            for (Part p : parts) {
+                paramsList.add(p.getName());
+                if (p.getSubmittedFileName() != null && !p.getSubmittedFileName().isEmpty()) {
+                    String inputName = p.getName();
+                    if (!inputs.contains(inputName)) {
+                        for (Parameter para : parameters) {
+                            if (para.getName().equals(inputName)) {
+                                inputs.add(inputName);
+                                if (List.class.isAssignableFrom(para.getType())) {
+                                    multiples.put(inputName, true);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    boolean multiple = multiples.getOrDefault(inputName, false);
+                    int index = indexes.getOrDefault(inputName, 0);
+                    indexes.put(inputName, index + 1);
+                    String fileNameFull = p.getSubmittedFileName();
+                    String[] fileParts = fileNameFull.split("\\.");
+                    String fileName = fileParts[0];
+                    String ext = "";
+                    if (fileParts.length > 1) {
+                        ext = fileParts[1];
+                    }
+                    String iName = inputName + ".fileName";
+                    String iExt = inputName + ".ext";
+                    String iBytes = inputName + ".bytes";
+                    String iName2 = inputName + "[" + index + "]" + ".fileName";
+                    String iExt2 = inputName + "[" + index + "]" + ".ext";
+                    String iBytes2 = inputName + "[" + index + "]" + ".bytes";
+                    if (!multiple) {
+                        paramsList.addAll(List.of(iName, iExt, iBytes));
+                    } else {
+                        paramsList.addAll(List.of(iName2, iExt2, iBytes2));
+                    }
+                    temp.put(iName, new String[] { fileName });
+                    temp.put(iExt, new String[] { ext });
+                    temp.put(iName2, new String[] { fileName });
+                    temp.put(iExt2, new String[] { ext });
+                    byte[] bytes = null;
+                    try (InputStream stream = p.getInputStream()) {
+                        bytes = stream.readAllBytes();
+                    }
+                    String b64 = Base64.getEncoder().encodeToString(bytes);
+                    temp.put(iBytes, new String[] { b64 });
+                    temp.put(iBytes2, new String[] { b64 });
+                    // index++;
+                }
+            }
+
+            params = Collections.enumeration(paramsList);
+            // params = Collections.enumeration(paramList2);
+        }
+
+        System.out.println("PARAM: " + params.hasMoreElements());
+        BindingContext ctx = new BindingContext();
+        for (Parameter p : parameters) {
+            ctx.registerRootType(p.getName(), p.getType(), p.getParameterizedType());
+        }
+        while (params.hasMoreElements()) {
+            String param = params.nextElement();
+            if (req.getParameterValues(param) != null) {
+                ctx.insertFormValue(param, req.getParameterValues(param));
+            } else if (temp.get(param) != null) {
+                ctx.insertFormValue(param, temp.get(param));
+            }
+        }
+        // System.out.println(ctx.getRoots());
+        Map<String, Object> result = ctx.instantiateAll();
+        for (int i = 0; i < parameters.length; i++) {
+            values[i] = result.getOrDefault(parameters[i].getName(), null);
+            // System.out.println("VALUES: " + values[i]);
+        }
     }
 
 }
