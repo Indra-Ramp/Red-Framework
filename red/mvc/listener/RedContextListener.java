@@ -3,8 +3,6 @@ package red.mvc.listener;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.context.support.ClassPathXmlApplicationContext;
-
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
@@ -13,6 +11,7 @@ import red.mvc.Utils.UrlMethod;
 import red.mvc.Utils.Utils;
 import red.mvc.annotation.Controller;
 import jakarta.servlet.annotation.WebListener;
+
 @WebListener
 public class RedContextListener implements ServletContextListener {
 
@@ -24,8 +23,6 @@ public class RedContextListener implements ServletContextListener {
         String packageName = context.getInitParameter("controllersPackage");
         String prefix = context.getInitParameter("prefixe");
         String suffix = context.getInitParameter("suffixe");
-        ApplicationContext ctx = new ClassPathXmlApplicationContext("applicationContext.xml");
-        context.setAttribute("applicationContext", ctx);
         System.out.println(prefix);
         System.out.println(suffix);
 
