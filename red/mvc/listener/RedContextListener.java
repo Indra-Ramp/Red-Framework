@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
+import red.mvc.web.servlet.RedSession;
 import red.mvc.annotation.Controller;
 import red.mvc.config.AppProperties;
 import red.mvc.Utils.Mapping;
@@ -45,6 +46,8 @@ public class RedContextListener implements ServletContextListener {
                 context.setAttribute("urlMappings", urlMapping);
                 ApplicationContext ctx = new ClassPathXmlApplicationContext("applicationContext.xml");
                 context.setAttribute("springContainer", ctx);
+                Map<String, RedSession> sessions = new HashMap<>();
+                context.setAttribute("sessions", sessions); 
             } catch (Exception e) {
                 throw new ServletException(e);
             }

@@ -23,10 +23,13 @@ import org.springframework.context.ApplicationContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
+import red.mvc.helper.RedSessionHelper;
 import red.mvc.annotation.UrlMapping;
 import red.mvc.exception.DuplicateUrlException;
+import red.mvc.web.servlet.RedSession;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 
 public class Utils {
@@ -142,17 +145,46 @@ public class Utils {
         }
     }
 
+    private static int findSpecificArgIndex(Class<?>[] parameterTypes, Class<?> clazz) {
+        if (parameterTypes == null) {
+            return -1;
+        }
+        return IntStream.range(0, parameterTypes.length)
+                .filter(i -> parameterTypes[i].equals(clazz))
+                .findFirst()
+                .orElse(-1);
+    }
+
     public static Object invokeMapping(Mapping mapping, ServletContext context, HttpServletRequest req) throws Exception {
+        HttpSession httpSession = null;
+        httpSession = req.getSession(true);
         Method method = mapping.getMethod();
         Class<?>[] parameterTypes = method.getParameterTypes();
-        int contextIndex = findContextIndex(parameterTypes);
+        int contextIndex = findSpecificArgIndex(parameterTypes, ApplicationContext.class);
+        int sessionIndex = findSpecificArgIndex(parameterTypes, RedSession.class);
         Object[] parameters = new Object[parameterTypes.length];
         fillParametersObject(method.getParameters(), req, parameters);
         if(contextIndex != -1) {
             parameters[contextIndex] = context.getAttribute("springContainer");
         }
+        RedSession session = null;
+        if(sessionIndex != -1){
+            Map<String, RedSession> sessions = (Map<String, RedSession>) context.getAttribute("sessions");
+            session = sessions.get(httpSession.getId());
+            if(session == null){
+                session = new RedSession();
+                sessions.put(httpSession.getId(), session);
+            }
+            RedSessionHelper.fillWithSession(session,httpSession);
+            parameters[sessionIndex] = session;
+        }
         Object invoking = mapping.getController().getConstructor().newInstance();
-        return mapping.getMethod().invoke(invoking, parameters);
+        Object ret = mapping.getMethod().invoke(invoking, parameters);
+        if(session != null){
+            RedSessionHelper.overrideHttpSession(session, httpSession);
+        }
+
+        return ret;
     }
 
     public static String toJson(Object object) throws JsonProcessingException {
@@ -252,4 +284,5 @@ public class Utils {
         }
     }
 
+    
 }
