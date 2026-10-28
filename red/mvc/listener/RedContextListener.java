@@ -8,6 +8,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 import red.mvc.annotation.Controller;
+import red.mvc.config.AppProperties;
 import red.mvc.Utils.Mapping;
 import red.mvc.Utils.UrlMethod;
 import red.mvc.Utils.Utils;
@@ -37,6 +38,7 @@ public class RedContextListener implements ServletContextListener {
         // System.out.println("--------------------------------");
         try {
             try {
+                AppProperties.loadProperties();
                 List<Class<?>> classes = Utils.scanPackage(packageName);
                 Map<UrlMethod, Mapping> urlMapping = new HashMap<>();
                 Utils.getUrlMapping(classes, Controller.class, urlMapping);
