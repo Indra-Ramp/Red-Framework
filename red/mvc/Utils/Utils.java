@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,6 +28,7 @@ import red.mvc.helper.RedSessionHelper;
 import red.mvc.annotation.UrlMapping;
 import red.mvc.exception.AuthRequiredException;
 import red.mvc.exception.DuplicateUrlException;
+import red.mvc.exception.NotAuthorizedException;
 import red.mvc.web.servlet.RedSession;
 import red.mvc.annotation.Auth;
 import jakarta.servlet.ServletContext;
@@ -166,6 +168,24 @@ public class Utils {
         }
     }
 
+    private static void checkRole(HttpSession httpSession, ServletContext context, Auth annotation) throws UnavailableException, NotAuthorizedException{
+        Map<String, RedSession> sessions = (Map<String, RedSession>) context.getAttribute("sessions");
+        // HttpSession httpSession = req.getSession(false);
+        RedSession session = sessions.get(httpSession.getId());
+        String sessionVar = context.getInitParameter("sessionRole");
+        String[] values = annotation.value();
+        if(values != null && values.length > 0) {
+            if(sessionVar == null) {
+                throw new UnavailableException(
+                    "The role variable has not been declared in the web.xml. Please declare the sessionRole variable to use role check.");
+            }
+            String role = (String) session.get(sessionVar);
+            if(!Arrays.asList(values).contains(role)) {
+                throw new NotAuthorizedException();
+            }
+        }
+    } 
+
     private static int findSpecificArgIndex(Class<?>[] parameterTypes, Class<?> clazz) {
         if (parameterTypes == null) {
             return -1;
@@ -182,6 +202,7 @@ public class Utils {
         Method method = mapping.getMethod();
         if(method.isAnnotationPresent(Auth.class)){
             checkAuth(httpSession, context);
+            checkRole(httpSession, context, method.getAnnotation(Auth.class));
         }
         Class<?>[] parameterTypes = method.getParameterTypes();
         int contextIndex = findSpecificArgIndex(parameterTypes, ApplicationContext.class);
