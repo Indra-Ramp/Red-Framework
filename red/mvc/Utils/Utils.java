@@ -25,9 +25,12 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 
 import red.mvc.helper.RedSessionHelper;
 import red.mvc.annotation.UrlMapping;
+import red.mvc.exception.AuthRequiredException;
 import red.mvc.exception.DuplicateUrlException;
 import red.mvc.web.servlet.RedSession;
+import red.mvc.annotation.Auth;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
@@ -145,6 +148,24 @@ public class Utils {
         }
     }
 
+    private static void checkAuth(HttpSession httpSession, ServletContext context) throws AuthRequiredException, UnavailableException {
+        Map<String, RedSession> sessions = (Map<String, RedSession>) context.getAttribute("sessions");
+        
+        RedSession session = sessions.get(httpSession.getId());
+        if(session == null){
+            throw new AuthRequiredException();
+        }
+        String sessionVar = context.getInitParameter("sessionAuth");
+        if(sessionVar == null){
+            throw new UnavailableException(
+                "The session variable has not been declared in web.wml. Please declare the sessionAuth variable to use authentification check."
+            );
+        }
+        if(session.get(sessionVar) == null){
+            throw new AuthRequiredException();
+        }
+    }
+
     private static int findSpecificArgIndex(Class<?>[] parameterTypes, Class<?> clazz) {
         if (parameterTypes == null) {
             return -1;
@@ -159,6 +180,9 @@ public class Utils {
         HttpSession httpSession = null;
         httpSession = req.getSession(true);
         Method method = mapping.getMethod();
+        if(method.isAnnotationPresent(Auth.class)){
+            checkAuth(httpSession, context);
+        }
         Class<?>[] parameterTypes = method.getParameterTypes();
         int contextIndex = findSpecificArgIndex(parameterTypes, ApplicationContext.class);
         int sessionIndex = findSpecificArgIndex(parameterTypes, RedSession.class);
